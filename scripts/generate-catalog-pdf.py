@@ -114,13 +114,15 @@ def parse_families():
 class ProductCard(Flowable):
     """A single product card with photo on top, name, latin, and spec rows."""
 
-    def __init__(self, product, width, height=None):
+    def __init__(self, product, width, height=None, has_image=True):
         super().__init__()
         self.product = product
         self.width = width
         self.height = height or 70 * mm  # default card height
+        self.has_image = has_image  # if False, render text-only card
         self._img_path = None
-        self._setup_image()
+        if has_image:
+            self._setup_image()
 
     def _setup_image(self):
         img_path = PROJECT_ROOT / "public" / self.product["image"].lstrip("/")
@@ -149,32 +151,34 @@ class ProductCard(Flowable):
         c.setLineWidth(0.6)
         c.roundRect(0, 0, w, h, 3 * mm, fill=1, stroke=1)
 
-        # Image area (top portion, full width minus small padding)
-        img_h = 28 * mm
-        img_pad = 1.5 * mm
-        img_w = w - 2 * img_pad
-        if self._img_path:
-            try:
-                c.drawImage(self._img_path, img_pad, h - img_h - img_pad,
-                            width=img_w, height=img_h, preserveAspectRatio=True,
-                            mask='auto')
-            except Exception:
-                # Fallback: draw a placeholder
+        if self.has_image:
+            # Image area (top portion)
+            img_h = 28 * mm
+            img_pad = 1.5 * mm
+            img_w = w - 2 * img_pad
+            if self._img_path:
+                try:
+                    c.drawImage(self._img_path, img_pad, h - img_h - img_pad,
+                                width=img_w, height=img_h, preserveAspectRatio=True,
+                                mask='auto')
+                except Exception:
+                    c.setFillColor(ICON_BG)
+                    c.rect(img_pad, h - img_h - img_pad, img_w, img_h, fill=1, stroke=0)
+                    c.setFillColor(GREEN)
+                    c.setFont("Helvetica", 14)
+                    c.drawCentredString(w / 2, h - img_h / 2, "🌿")
+            else:
                 c.setFillColor(ICON_BG)
                 c.rect(img_pad, h - img_h - img_pad, img_w, img_h, fill=1, stroke=0)
                 c.setFillColor(GREEN)
                 c.setFont("Helvetica", 14)
                 c.drawCentredString(w / 2, h - img_h / 2, "🌿")
-        else:
-            c.setFillColor(ICON_BG)
-            c.rect(img_pad, h - img_h - img_pad, img_w, img_h, fill=1, stroke=0)
-            c.setFillColor(GREEN)
-            c.setFont("Helvetica", 14)
-            c.drawCentredString(w / 2, h - img_h / 2, "🌿")
 
-        # Text area (below image)
-        text_top = h - img_h - 2 * img_pad
-        text_h = text_top - 3 * mm
+            # Text area (below image)
+            text_top = h - img_h - 2 * img_pad
+        else:
+            # Text-only card (no image) — for oils and similar
+            text_top = h - 3 * mm
 
         # Product name (bold, dark)
         c.setFillColor(GREEN_DARK)
@@ -253,6 +257,11 @@ def build_pdf():
         "essential-oils", "vegetable-oils",
     ]
 
+    # Families that have no real product images → render as text-only cards
+    # (oils are typically shipped in uniform containers, so a single
+    # placeholder image repeated 39 times looks worse than a clean text card).
+    NO_IMAGE_FAMILIES = {"essential-oils", "vegetable-oils"}
+
     doc = BaseDocTemplate(
         str(OUTPUT_PDF),
         pagesize=A4,
@@ -290,6 +299,8 @@ def build_pdf():
     cards_per_row = 3
     card_w = (PAGE_W - 2 * MARGIN - (cards_per_row - 1) * 4 * mm) / cards_per_row
     card_h = 64 * mm
+    # Text-only cards (oils) are shorter since there's no image
+    card_h_no_image = 38 * mm
     row_gap = 4 * mm
 
     for fid in family_order:
@@ -297,6 +308,15 @@ def build_pdf():
             continue
         family_name = families.get(fid, fid)
         family_products = by_family[fid]
+        has_image = fid not in NO_IMAGE_FAMILIES
+        # For text-only cards, fit more per row (4) since they're smaller
+        if has_image:
+            cur_cards_per_row = cards_per_row
+            cur_card_h = card_h
+        else:
+            cur_cards_per_row = 4
+            cur_card_h = card_h_no_image
+        cur_card_w = (PAGE_W - 2 * MARGIN - (cur_cards_per_row - 1) * 3 * mm) / cur_cards_per_row
 
         # Family header (centered, dark green serif)
         story.append(Spacer(1, 2 * mm))
@@ -315,21 +335,21 @@ def build_pdf():
         rows = []
         current_row = []
         for p in family_products:
-            card = ProductCard(p, card_w, card_h)
+            card = ProductCard(p, cur_card_w, cur_card_h, has_image=has_image)
             current_row.append(card)
-            if len(current_row) == cards_per_row:
+            if len(current_row) == cur_cards_per_row:
                 rows.append(current_row)
                 current_row = []
         if current_row:
-            while len(current_row) < cards_per_row:
+            while len(current_row) < cur_cards_per_row:
                 current_row.append("")
             rows.append(current_row)
 
         # Render each row as a Table of cards
         for row_cards in rows:
             row_data = [row_cards]
-            t = Table(row_data, colWidths=[card_w] * cards_per_row,
-                      rowHeights=[card_h])
+            t = Table(row_data, colWidths=[cur_card_w] * cur_cards_per_row,
+                      rowHeights=[cur_card_h])
             t.setStyle(TableStyle([
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 0),
@@ -337,13 +357,6 @@ def build_pdf():
                 ("TOPPADDING", (0, 0), (-1, -1), 0),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
             ]))
-            # Use a container table with gutter
-            gutter_cells = []
-            for i, card in enumerate(row_cards):
-                gutter_cells.append(card)
-                if i < len(row_cards) - 1:
-                    gutter_cells.append("")  # gutter
-            # Simpler: just add the cards row + spacer
             story.append(t)
             story.append(Spacer(1, row_gap))
 
@@ -357,6 +370,7 @@ def build_pdf():
     doc.build(story)
     print(f"✓ PDF generated: {OUTPUT_PDF}")
     print(f"  Size: {OUTPUT_PDF.stat().st_size / 1024:.1f} KB")
+    print(f"  Text-only families (no images): {sorted(NO_IMAGE_FAMILIES)}")
 
 
 if __name__ == "__main__":
