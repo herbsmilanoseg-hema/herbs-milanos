@@ -27,6 +27,14 @@ const playfair = Playfair_Display({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://herbsmilanos.space-z.ai"),
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/logo/favicon-32.png", type: "image/png", sizes: "32x32" },
+      { url: "/logo/favicon-128.png", type: "image/png", sizes: "128x128" },
+    ],
+    apple: [{ url: "/logo/favicon-128.png", sizes: "128x128" }],
+  },
   title: {
     default: "Herbs Milanos — Premium Egyptian Herbs & Spices for Global B2B Buyers",
     template: "%s · Herbs Milanos",

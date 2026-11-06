@@ -7,8 +7,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { Menu, Mail } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { Leaf, Menu, Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -61,9 +62,14 @@ export function SiteHeader() {
           className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
           aria-label={`${site.name} home`}
         >
-          <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-            <Leaf className="size-5" />
-          </span>
+          <Image
+            src="/logo/header.png"
+            alt={site.name}
+            width={48}
+            height={32}
+            className="h-9 w-auto object-contain"
+            priority
+          />
           <span className="flex flex-col leading-none">
             <span className="text-lg font-bold tracking-tight text-primary">
               {site.name}
@@ -131,9 +137,13 @@ export function SiteHeader() {
             <SheetContent side="right" className="w-80 max-w-[85vw]">
               <SheetHeader className="px-6 pt-6">
                 <SheetTitle className="flex items-center gap-2">
-                  <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                    <Leaf className="size-4" />
-                  </span>
+                  <Image
+                    src="/logo/header.png"
+                    alt={site.name}
+                    width={40}
+                    height={28}
+                    className="h-8 w-auto object-contain"
+                  />
                   <span className="text-primary">{site.name}</span>
                 </SheetTitle>
               </SheetHeader>

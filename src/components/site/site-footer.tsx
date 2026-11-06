@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
-  Leaf,
   Mail,
   MessageCircle,
   MapPin,
@@ -52,9 +52,13 @@ export function SiteFooter() {
               href="/"
               className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
             >
-              <span className="flex size-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
-                <Leaf className="size-5" />
-              </span>
+              <Image
+                src="/logo/footer.png"
+                alt={site.name}
+                width={48}
+                height={32}
+                className="h-9 w-auto object-contain"
+              />
               <span className="flex flex-col leading-none">
                 <span className="text-lg font-bold tracking-tight text-white">
                   {site.name}
