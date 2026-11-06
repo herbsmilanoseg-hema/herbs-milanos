@@ -405,37 +405,52 @@ function CatalogCard({
     t.productBriefs[product.id] ?? product.brief;
   const [loaded, setLoaded] = useState(false);
 
+  // Oils use a placeholder image — hide the image frame entirely
+  // and show a clean text-only card instead.
+  const isOilPlaceholder = img === "/products/oil-symbolic.jpg";
+
   return (
     <Link
       href={`/products/${product.id}`}
-      // prefetch on hover is automatic for <Link> in Next.js App Router.
       className="card-hover animate-fade-up group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
       style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }}
     >
-      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-        {!loaded && <div className="img-skeleton absolute inset-0" aria-hidden />}
-        <Image
-          src={img}
-          alt={`${product.name} — ${product.latinName}`}
-          fill
-          loading="lazy"
-          sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
-          className="img-zoom object-contain p-2"
-          onLoad={() => setLoaded(true)}
-        />
-        <div className="absolute left-2 top-2">
-          <Badge variant="secondary" className="bg-white/95 text-foreground shadow-sm">
-            {familyName(product.family)}
-          </Badge>
+      {!isOilPlaceholder && (
+        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+          {!loaded && <div className="img-skeleton absolute inset-0" aria-hidden />}
+          <Image
+            src={img}
+            alt={`${product.name} — ${product.latinName}`}
+            fill
+            loading="lazy"
+            sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className="img-zoom object-contain p-2"
+            onLoad={() => setLoaded(true)}
+          />
+          <div className="absolute left-2 top-2">
+            <Badge variant="secondary" className="bg-white/95 text-foreground shadow-sm">
+              {familyName(product.family)}
+            </Badge>
+          </div>
+          <div className="absolute right-2 top-2">
+            <Badge className="bg-primary text-primary-foreground shadow-sm">
+              MOQ {product.moq}
+            </Badge>
+          </div>
         </div>
-        <div className="absolute right-2 top-2">
-          <Badge className="bg-primary text-primary-foreground shadow-sm">
-            MOQ {product.moq}
-          </Badge>
-        </div>
-      </div>
+      )}
 
-      <div className="flex flex-1 flex-col gap-2.5 p-4">
+      <div className={`flex flex-1 flex-col gap-2.5 ${isOilPlaceholder ? "p-5" : "p-4"}`}>
+        {isOilPlaceholder && (
+          <div className="mb-1 flex items-center justify-between">
+            <Badge variant="secondary" className="bg-primary/10 text-primary">
+              {familyName(product.family)}
+            </Badge>
+            <Badge className="bg-primary text-primary-foreground">
+              MOQ {product.moq}
+            </Badge>
+          </div>
+        )}
         <div>
           <h3 className="text-base font-semibold text-foreground">
             {product.name}

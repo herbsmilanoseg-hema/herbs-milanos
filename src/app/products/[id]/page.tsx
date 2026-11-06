@@ -84,6 +84,7 @@ export default async function ProductDetailPage({
   if (!product) notFound();
 
   const img = product.image || familyImage(product.family);
+  const isOilPlaceholder = img === "/products/oil-symbolic.jpg";
 
   const specRows: { label: string; value: string }[] = [
     { label: L.appearance, value: product.appearance },
@@ -151,39 +152,66 @@ export default async function ProductDetailPage({
         <section className="bg-background py-10 md:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-              {/* Image */}
-              <div className="relative aspect-square overflow-hidden rounded-2xl border border-border bg-muted shadow-sm">
-                <Image
-                  src={img}
-                  alt={`${product.name} — ${product.latinName}`}
-                  fill
-                  priority
-                  sizes="(min-width: 1024px) 50vw, 100vw"
-                  className="object-cover"
-                />
-                <div className="absolute left-3 top-3">
-                  <Badge variant="secondary" className="bg-white/95 text-foreground shadow-sm">
-                    {familyName(product.family)}
-                  </Badge>
+              {/* Image (or info panel for oils without image) */}
+              {isOilPlaceholder ? (
+                <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary" className="bg-primary/10 text-primary">
+                      {familyName(product.family)}
+                    </Badge>
+                    <Badge className="bg-primary text-primary-foreground">
+                      MOQ {product.moq}
+                    </Badge>
+                  </div>
+                  <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-serif">
+                    {product.name}
+                  </h1>
+                  <p className="text-base italic text-muted-foreground">
+                    {product.latinName}
+                  </p>
+                  <div className="mt-2 botanical-divider" aria-hidden />
+                  <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+                    {product.brief}
+                  </p>
                 </div>
-                <div className="absolute right-3 top-3">
-                  <Badge className="bg-primary text-primary-foreground shadow-sm">
-                    MOQ {product.moq}
-                  </Badge>
+              ) : (
+                <div className="relative aspect-square overflow-hidden rounded-2xl border border-border bg-muted shadow-sm">
+                  <Image
+                    src={img}
+                    alt={`${product.name} — ${product.latinName}`}
+                    fill
+                    priority
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    className="object-cover"
+                  />
+                  <div className="absolute left-3 top-3">
+                    <Badge variant="secondary" className="bg-white/95 text-foreground shadow-sm">
+                      {familyName(product.family)}
+                    </Badge>
+                  </div>
+                  <div className="absolute right-3 top-3">
+                    <Badge className="bg-primary text-primary-foreground shadow-sm">
+                      MOQ {product.moq}
+                    </Badge>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Info */}
               <div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-serif">
-                  {product.name}
-                </h1>
-                <p className="mt-1 text-base italic text-muted-foreground">
-                  {product.latinName}
-                </p>
-                <div className="mt-3 botanical-divider" aria-hidden />
+                {isOilPlaceholder ? null : (
+                  <>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-serif">
+                      {product.name}
+                    </h1>
+                    <p className="mt-1 text-base italic text-muted-foreground">
+                      {product.latinName}
+                    </p>
+                    <div className="mt-3 botanical-divider" aria-hidden />
+                  </>
+                )}
 
-                <p className="mt-6 text-base leading-relaxed text-muted-foreground">
+                <p className={`mt-6 text-base leading-relaxed text-muted-foreground ${isOilPlaceholder ? "hidden" : ""}`}>
                   {product.brief}
                 </p>
 
