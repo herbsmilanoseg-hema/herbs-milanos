@@ -1027,10 +1027,13 @@ const en: Dictionary = {
   },
 };
 
-/* ───────────────────────── Other languages (UI strings) ───────────────────────── */
-/* Full content falls back to English via merge(). To complete a language,
-   copy the structure of `en` and translate every string. */
+/* ───────────────────────── Other languages ───────────────────────── */
+/* Full translations for each language. Product names and trade terms
+   (FOB, CIF, MOQ, etc.) are kept in English across all languages. */
+import { fr } from "./dictionaries/fr";
+
 export const translations: Record<LangCode, Dictionary> = {
   en,
   ar,
+  fr,
 };

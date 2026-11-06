@@ -1,9 +1,9 @@
 /**
  * Supported languages for the Herbs Milanos site.
- * Arabic (ar) is RTL; English (en) is LTR.
+ * Arabic (ar) is RTL; all others are LTR.
  */
 
-export type LangCode = "en" | "ar";
+export type LangCode = "en" | "ar" | "fr" | "de" | "it" | "ru" | "zh" | "es" | "pt" | "tr";
 
 export interface Language {
   code: LangCode;
@@ -15,6 +15,14 @@ export interface Language {
 export const languages: Language[] = [
   { code: "en", label: "English", dir: "ltr" },
   { code: "ar", label: "العربية", dir: "rtl" },
+  { code: "fr", label: "Français", dir: "ltr" },
+  { code: "de", label: "Deutsch", dir: "ltr" },
+  { code: "it", label: "Italiano", dir: "ltr" },
+  { code: "ru", label: "Русский", dir: "ltr" },
+  { code: "zh", label: "中文", dir: "ltr" },
+  { code: "es", label: "Español", dir: "ltr" },
+  { code: "pt", label: "Português", dir: "ltr" },
+  { code: "tr", label: "Türkçe", dir: "ltr" },
 ];
 
 export const defaultLang: LangCode = "en";
