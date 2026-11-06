@@ -265,6 +265,9 @@ def build_pdf():
         PageTemplate(id="content", frames=[content_frame], onPage=content_page),
     ])
 
+    # First page uses "content" template (we removed the cover page)
+    doc._nextPageTemplateIndex = 1  # 0 = cover, 1 = content
+
     # ─── Styles ──────────────────────────────────────────────────────────
     styles = getSampleStyleSheet()
     style_cover_title = ParagraphStyle(
@@ -333,72 +336,10 @@ def build_pdf():
         alignment=TA_CENTER, leading=15, spaceAfter=4,
     )
 
-    # ─── Cover page ──────────────────────────────────────────────────────
+    # ─── Products by family (catalog starts directly, no cover/TOC) ──────
     story = []
-    story.append(Spacer(1, 60*mm))
-    story.append(Paragraph("HERBS MILANOS", style_cover_title))
-    story.append(Spacer(1, 4*mm))
-    story.append(Paragraph("Wholesale Catalog", style_cover_sub))
-    story.append(Paragraph(f"{len(products)} Egyptian Botanicals · 9 Product Families",
-                            style_cover_caption))
-    story.append(Spacer(1, 8*mm))
-    # Gold divider
-    story.append(HorizontalLine(40*mm, 1.5, GOLD))
-    story.append(Spacer(1, 4*mm))
-    story.append(Paragraph(
-        "Premium Egyptian herbs, spices, seeds, flowers &amp; botanicals — "
-        "factory-direct to your container.",
-        style_cover_caption
-    ))
-    story.append(Spacer(1, 70*mm))
-    # Contact on cover (bottom)
-    cover_contact_style = ParagraphStyle(
-        "CoverContact", parent=styles["Normal"],
-        fontName="Helvetica", fontSize=9, textColor=colors.white,
-        alignment=TA_CENTER, leading=12,
-    )
-    story.append(Paragraph("Beni Suef, Egypt  ·  herbs.milanos.eg@gmail.com  ·  +20 122 621 1624",
-                            cover_contact_style))
-    story.append(Paragraph("ISO 9001:2015 · ISO 22000:2018 · HACCP",
-                            cover_contact_style))
-
+    # First page must use the "content" template (not "cover")
     story.append(NextPageTemplate("content"))
-    story.append(PageBreak())
-
-    # ─── Table of contents ──────────────────────────────────────────────
-    story.append(Paragraph("Table of Contents", style_section_h1))
-    story.append(HorizontalLine(PAGE_W - 2*MARGIN, 1, GREEN_LIME))
-    story.append(Spacer(1, 6*mm))
-    story.append(Paragraph(
-        "Herbs Milanos is an Egyptian manufacturer and bulk exporter of aromatic plants, "
-        "herbs, flowers, seeds, spices, essential oils and vegetable oils. Founded in 2000, "
-        "we own our farms in Beni Suef and operate under ISO 22000:2018, ISO 9001:2015 and "
-        "HACCP — supplying B2B buyers in 30+ countries.",
-        style_section_intro
-    ))
-    story.append(Spacer(1, 4*mm))
-
-    # Family counts
-    for fid in family_order:
-        if fid in by_family:
-            name = families.get(fid, fid)
-            count = len(by_family[fid])
-            story.append(Paragraph(f"{name}  ({count} products)", style_toc_family))
-
-    story.append(Spacer(1, 8*mm))
-    story.append(HorizontalLine(PAGE_W - 2*MARGIN, 0.5, GREEN_LIME))
-    story.append(Spacer(1, 4*mm))
-    story.append(Paragraph(
-        "<b>How to use this catalog:</b> Each product entry includes a one-line brief, "
-        "available forms (whole / cut / TBC / powder / etc.), grades, country of origin, "
-        "harvest season, MOQ, packing, purity, moisture, volatile oil content and shelf life. "
-        "For COA (Certificate of Analysis) per lot, please request via the contact form on "
-        "our website or by email.",
-        style_brief
-    ))
-    story.append(PageBreak())
-
-    # ─── Products by family ─────────────────────────────────────────────
     for fid in family_order:
         if fid not in by_family:
             continue
