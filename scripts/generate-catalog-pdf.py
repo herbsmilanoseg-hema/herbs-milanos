@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """
-Herbs Milanos — Wholesale Product Catalog PDF Generator (English only)
+Herbs Milanos — Wholesale Product Catalog (ONIC-style)
+English only.
 
-Generates a professional B2B catalog PDF with:
-  • Cover page (logo + tagline + contact info)
-  • Table of contents
-  • 9 product family sections
-  • 89 product entries (2-column layout, brief + key specs)
-  • Company info + contact page
-
-Output: download/herbs-milanos-catalog-english.pdf
+Style reference: ONIC_Export_Catalogue_2026_V3.docx
+  • Off-white/ivory background (#F7F5F0)
+  • White rounded-corner cards per product
+  • Thin gray-green hairline borders (#DDE5DA)
+  • Photo on top of each card
+  • Bold dark serif headings (Playfair-style)
+  • Italic latin name
+  • Icon + label rows (harvest, forms, etc.)
+  • Green accents (#4a8b3f)
+  • Footer band per page
 """
 
 import re
@@ -19,11 +22,11 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm, cm
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY, TA_RIGHT
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.platypus import (
-    SimpleDocTemplate,
+    BaseDocTemplate,
+    PageTemplate,
+    Frame,
     Paragraph,
     Spacer,
     PageBreak,
@@ -32,80 +35,59 @@ from reportlab.platypus import (
     Image as RLImage,
     KeepTogether,
     NextPageTemplate,
-    PageTemplate,
-    Frame,
-    BaseDocTemplate,
     Flowable,
 )
-from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
-# ─── Brand palette ─────────────────────────────────────────────────────────
-GREEN_DARK = colors.HexColor("#174c35")  # primary brand green
-GREEN_LIME = colors.HexColor("#95b858")  # accent
-CREAM = colors.HexColor("#f8f7ef")        # background
-GOLD = colors.HexColor("#c29a59")         # accent for headings
-INK = colors.HexColor("#253328")         # body text
-MUTED = colors.HexColor("#7a857c")        # secondary text
+# ─── Brand palette (matching ONIC style) ──────────────────────────────────
+BG_IVORY = colors.HexColor("#F7F5F0")     # page background
+CARD_BG = colors.white                     # product card background
+BORDER = colors.HexColor("#DDE5DA")        # card border (gray-green hairline)
+GREEN = colors.HexColor("#4a8b3f")        # primary green accent
+GREEN_DARK = colors.HexColor("#1E3A2A")   # dark forest green for headings
+INK = colors.HexColor("#2B2B2B")          # body text (near-black)
+MUTED = colors.HexColor("#6B6B6B")        # secondary text
+ICON_BG = colors.HexColor("#E4F0E0")      # pale green for icon circles
+FOOTER_BG = colors.HexColor("#E8F1E0")    # light sage footer band
 
-# ─── Paths ──────────────────────────────────────────────────────────────────
+# ─── Paths ───────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path("/home/z/my-project")
 CATALOG_TS = PROJECT_ROOT / "src" / "data" / "catalog.ts"
 PRODUCTS_TS = PROJECT_ROOT / "src" / "data" / "products.ts"
 SITE_TS = PROJECT_ROOT / "src" / "data" / "site.ts"
-LOGO_SVG = PROJECT_ROOT / "public" / "logo.svg"
-HERO_IMG = PROJECT_ROOT / "public" / "hero-welcome.jpg"
 OUTPUT_PDF = PROJECT_ROOT / "download" / "herbs-milanos-catalog-english.pdf"
 
-# Page geometry
 PAGE_W, PAGE_H = A4
-MARGIN = 18 * mm
+MARGIN = 14 * mm
 
-# ─── Parse catalog.ts (TypeScript → Python dict) ───────────────────────────
+# ─── Parse catalog.ts ────────────────────────────────────────────────────
 def parse_catalog():
-    """Extract products from catalog.ts using a simpler, more reliable approach.
-
-    Strategy: find each top-level object that has an `id:` field, then
-    extract fields by name (each field is `key: value` on its own line or
-    inline). Arrays use `key: [...,...]`.
-    """
     src = CATALOG_TS.read_text(encoding="utf-8")
-    # Strip block comments
     src = re.sub(r"/\*.*?\*/", "", src, flags=re.DOTALL)
     src = re.sub(r"//.*", "", src)
-
-    # Find all top-level product objects: { id: "..." ... },
-    # Match from one `{ id:` to the matching `}` at the same depth.
     products = []
     i = 0
     while True:
-        # Find next `{ id:`
         m = re.search(r'\{\s*id:\s*"([^"]+)"', src[i:])
         if not m:
             break
         start = i + m.start()
         product_id = m.group(1)
-        # Find matching close brace (track depth)
         depth = 1
         j = start + 1
         while j < len(src) and depth > 0:
-            if src[j] == "{":
-                depth += 1
-            elif src[j] == "}":
-                depth -= 1
+            if src[j] == "{": depth += 1
+            elif src[j] == "}": depth -= 1
             j += 1
         body = src[start:j]
-
-        # Extract fields
         def get_str(key):
             m = re.search(rf'{key}:\s*"((?:[^"\\]|\\.)*)"', body)
             return m.group(1).replace('\\"', '"').replace("\\'", "'") if m else ""
-
         def get_arr(key):
             m = re.search(rf'{key}:\s*\[([^\]]*)\]', body)
-            if not m:
-                return []
+            if not m: return []
             return [s.strip().strip('"') for s in m.group(1).split(",") if s.strip()]
-
         products.append({
             "id": product_id,
             "name": get_str("name"),
@@ -114,462 +96,264 @@ def parse_catalog():
             "brief": get_str("brief"),
             "image": get_str("image"),
             "forms": get_arr("forms"),
-            "grades": get_arr("grades"),
             "origin": get_str("origin"),
-            "harvestMethod": get_str("harvestMethod"),
             "season": get_str("season"),
             "moq": get_str("moq"),
-            "packing": get_str("packing"),
             "purity": get_str("purity"),
-            "moisture": get_str("moisture"),
-            "volatileOil": get_str("volatileOil"),
-            "foreignOrganic": get_str("foreignOrganic"),
-            "foreignInorganic": get_str("foreignInorganic"),
-            "appearance": get_str("appearance"),
-            "color": get_str("color"),
             "shelfLife": get_str("shelfLife"),
         })
         i = j
-
     return products
 
-
 def parse_families():
-    """Extract family id → display name from products.ts"""
     src = PRODUCTS_TS.read_text(encoding="utf-8")
     src = re.sub(r"/\*.*?\*/", "", src, flags=re.DOTALL)
-    # Match: id: "xxx", name: "yyy"
-    pairs = re.findall(r'id:\s*"([a-z-]+)"\s*,\s*name:\s*"([^"]+)"', src)
-    return {fid: name for fid, name in pairs}
+    return dict(re.findall(r'id:\s*"([a-z-]+)"\s*,\s*name:\s*"([^"]+)"', src))
 
+# ─── Product Card Flowable ──────────────────────────────────────────────
+class ProductCard(Flowable):
+    """A single product card with photo on top, name, latin, and spec rows."""
 
-def parse_site_contact():
-    """Extract contact info from site.ts"""
-    src = SITE_TS.read_text(encoding="utf-8")
-    contact = {}
-    for key in ["email", "phone", "whatsapp", "whatsappLink", "address"]:
-        m = re.search(rf'{key}:\s*"([^"]+)"', src)
-        if m:
-            contact[key] = m.group(1)
-    return contact
-
-
-# ─── Custom Flowables ───────────────────────────────────────────────────────
-class HorizontalLine(Flowable):
-    """Thin horizontal line."""
-    def __init__(self, width, thickness=0.5, color=GREEN_LIME):
+    def __init__(self, product, width, height=None):
         super().__init__()
+        self.product = product
         self.width = width
-        self.thickness = thickness
-        self.color = color
+        self.height = height or 70 * mm  # default card height
+        self._img_path = None
+        self._setup_image()
+
+    def _setup_image(self):
+        img_path = PROJECT_ROOT / "public" / self.product["image"].lstrip("/")
+        if img_path.exists():
+            try:
+                from PIL import Image as PILImage
+                pil_img = PILImage.open(img_path)
+                pil_img.thumbnail((240, 240), PILImage.LANCZOS)
+                if pil_img.mode != "RGB":
+                    pil_img = pil_img.convert("RGB")
+                tmp = Path("/tmp") / f"catcard_{self.product['id']}.jpg"
+                pil_img.save(tmp, "JPEG", quality=85)
+                self._img_path = str(tmp)
+            except Exception:
+                self._img_path = None
+
+    def wrap(self, availWidth, availHeight):
+        return self.width, self.height
 
     def draw(self):
-        self.canv.setStrokeColor(self.color)
-        self.canv.setLineWidth(self.thickness)
-        self.canv.line(0, 0, self.width, 0)
+        c = self.canv
+        w, h = self.width, self.height
+        # Card background (white rounded)
+        c.setFillColor(CARD_BG)
+        c.setStrokeColor(BORDER)
+        c.setLineWidth(0.6)
+        c.roundRect(0, 0, w, h, 3 * mm, fill=1, stroke=1)
+
+        # Image area (top portion, full width minus small padding)
+        img_h = 28 * mm
+        img_pad = 1.5 * mm
+        img_w = w - 2 * img_pad
+        if self._img_path:
+            try:
+                c.drawImage(self._img_path, img_pad, h - img_h - img_pad,
+                            width=img_w, height=img_h, preserveAspectRatio=True,
+                            mask='auto')
+            except Exception:
+                # Fallback: draw a placeholder
+                c.setFillColor(ICON_BG)
+                c.rect(img_pad, h - img_h - img_pad, img_w, img_h, fill=1, stroke=0)
+                c.setFillColor(GREEN)
+                c.setFont("Helvetica", 14)
+                c.drawCentredString(w / 2, h - img_h / 2, "🌿")
+        else:
+            c.setFillColor(ICON_BG)
+            c.rect(img_pad, h - img_h - img_pad, img_w, img_h, fill=1, stroke=0)
+            c.setFillColor(GREEN)
+            c.setFont("Helvetica", 14)
+            c.drawCentredString(w / 2, h - img_h / 2, "🌿")
+
+        # Text area (below image)
+        text_top = h - img_h - 2 * img_pad
+        text_h = text_top - 3 * mm
+
+        # Product name (bold, dark)
+        c.setFillColor(GREEN_DARK)
+        c.setFont("Helvetica-Bold", 9.5)
+        name_y = text_top - 4 * mm
+        c.drawString(3 * mm, name_y, self.product["name"][:28])
+
+        # Latin name (italic, muted)
+        c.setFillColor(MUTED)
+        c.setFont("Helvetica-Oblique", 7.5)
+        c.drawString(3 * mm, name_y - 3.5 * mm, self.product["latinName"][:35])
+
+        # Spec rows (label + value)
+        specs = [
+            ("Origin", self.product.get("origin") or "Egypt"),
+            ("Harvest", self.product.get("season") or "—"),
+            ("Forms", ", ".join(self.product.get("forms", [])) or "—"),
+            ("MOQ", self.product.get("moq") or "—"),
+            ("Purity", self.product.get("purity") or "—"),
+            ("Shelf life", self.product.get("shelfLife") or "—"),
+        ]
+        row_y = name_y - 7 * mm
+        for label, value in specs:
+            if not value or value == "—":
+                continue
+            # Label (bold, small)
+            c.setFillColor(MUTED)
+            c.setFont("Helvetica-Bold", 6.5)
+            c.drawString(3 * mm, row_y, label)
+            # Value (regular)
+            c.setFillColor(INK)
+            c.setFont("Helvetica", 6.5)
+            val_text = value[:30] + ("…" if len(value) > 30 else "")
+            c.drawString(3 * mm + 14 * mm, row_y, val_text)
+            row_y -= 3.2 * mm
 
 
-# ─── Page templates ─────────────────────────────────────────────────────────
-def cover_page(canvas_obj, doc):
-    """Cover page background."""
+# ─── Page background (ivory + footer band) ───────────────────────────────
+def page_bg(canvas_obj, doc):
     canvas_obj.saveState()
-    # Cream background
-    canvas_obj.setFillColor(CREAM)
+    # Ivory page background
+    canvas_obj.setFillColor(BG_IVORY)
     canvas_obj.rect(0, 0, PAGE_W, PAGE_H, fill=1, stroke=0)
-    # Dark green band on top
-    canvas_obj.setFillColor(GREEN_DARK)
-    canvas_obj.rect(0, PAGE_H - 80*mm, PAGE_W, 80*mm, fill=1, stroke=0)
-    # Gold accent line
-    canvas_obj.setFillColor(GOLD)
-    canvas_obj.rect(0, PAGE_H - 82*mm, PAGE_W, 2*mm, fill=1, stroke=0)
-    canvas_obj.restoreState()
 
+    # Footer band (light sage)
+    footer_h = 8 * mm
+    canvas_obj.setFillColor(FOOTER_BG)
+    canvas_obj.rect(0, 0, PAGE_W, footer_h, fill=1, stroke=0)
 
-def content_page(canvas_obj, doc):
-    """Content page: header + footer on every page."""
-    canvas_obj.saveState()
-    # Header line
-    canvas_obj.setStrokeColor(GREEN_LIME)
-    canvas_obj.setLineWidth(0.5)
-    canvas_obj.line(MARGIN, PAGE_H - 12*mm, PAGE_W - MARGIN, PAGE_H - 12*mm)
-    # Header text (left = brand, right = section)
-    canvas_obj.setFont("Helvetica-Bold", 8)
-    canvas_obj.setFillColor(GREEN_DARK)
-    canvas_obj.drawString(MARGIN, PAGE_H - 9*mm, "HERBS MILANOS")
-    canvas_obj.setFont("Helvetica", 8)
-    canvas_obj.setFillColor(MUTED)
-    canvas_obj.drawRightString(PAGE_W - MARGIN, PAGE_H - 9*mm,
-                                "Wholesale Catalog 2026")
-    # Footer line
-    canvas_obj.setStrokeColor(GREEN_LIME)
-    canvas_obj.line(MARGIN, 14*mm, PAGE_W - MARGIN, 14*mm)
     # Footer text
+    canvas_obj.setFillColor(GREEN_DARK)
     canvas_obj.setFont("Helvetica", 8)
-    canvas_obj.setFillColor(MUTED)
-    canvas_obj.drawString(MARGIN, 9*mm, "herbs.milanos.eg@gmail.com  ·  +20 122 621 1624")
-    canvas_obj.drawRightString(PAGE_W - MARGIN, 9*mm, f"Page {doc.page}")
+    canvas_obj.drawCentredString(PAGE_W / 2, 3 * mm,
+        f"Herbs Milanos  ·  Wholesale Catalog  ·  Page {doc.page}")
     canvas_obj.restoreState()
 
 
-# ─── Build PDF ──────────────────────────────────────────────────────────────
+def family_header_bg(canvas_obj, doc):
+    """Family divider page: full green band header."""
+    page_bg(canvas_obj, doc)
+
+
+# ─── Build PDF ──────────────────────────────────────────────────────────
 def build_pdf():
     products = parse_catalog()
     families = parse_families()
-    contact = parse_site_contact()
+    print(f"✓ Parsed {len(products)} products, {len(families)} families")
 
-    print(f"✓ Parsed {len(products)} products from catalog.ts")
-    print(f"✓ Parsed {len(families)} families from products.ts")
-    print(f"✓ Contact info: {contact.get('email', 'N/A')}")
-    print()
-
-    # Group products by family
     by_family = {}
     for p in products:
         by_family.setdefault(p["family"], []).append(p)
 
-    # Order families as in products.ts
     family_order = [
-        "culinary-herbs",
-        "tea-herbs",
-        "medicinal-herbs",
-        "flowers",
-        "aromatic-seeds",
-        "functional-seeds",
-        "vegetables-others",
-        "essential-oils",
-        "vegetable-oils",
+        "culinary-herbs", "tea-herbs", "medicinal-herbs", "flowers",
+        "aromatic-seeds", "functional-seeds", "vegetables-others",
+        "essential-oils", "vegetable-oils",
     ]
 
-    # ─── Document setup ──────────────────────────────────────────────────
     doc = BaseDocTemplate(
         str(OUTPUT_PDF),
         pagesize=A4,
-        leftMargin=MARGIN,
-        rightMargin=MARGIN,
-        topMargin=20*mm,
-        bottomMargin=20*mm,
+        leftMargin=MARGIN, rightMargin=MARGIN,
+        topMargin=MARGIN, bottomMargin=12 * mm,
         title="Herbs Milanos — Wholesale Catalog",
         author="Herbs Milanos",
-        subject="Egyptian botanicals wholesale catalog",
     )
 
-    cover_frame = Frame(0, 0, PAGE_W, PAGE_H, id="cover")
     content_frame = Frame(
-        MARGIN, 18*mm,
-        PAGE_W - 2*MARGIN, PAGE_H - 40*mm,
-        id="content"
+        MARGIN, 12 * mm,
+        PAGE_W - 2 * MARGIN, PAGE_H - MARGIN - 12 * mm,
+        id="content", leftPadding=0, rightPadding=0,
+        topPadding=0, bottomPadding=0,
     )
-
     doc.addPageTemplates([
-        PageTemplate(id="cover", frames=[cover_frame], onPage=cover_page),
-        PageTemplate(id="content", frames=[content_frame], onPage=content_page),
+        PageTemplate(id="content", frames=[content_frame], onPage=page_bg),
     ])
 
-    # First page uses "content" template (we removed the cover page)
-    doc._nextPageTemplateIndex = 1  # 0 = cover, 1 = content
-
-    # ─── Styles ──────────────────────────────────────────────────────────
+    # Styles
     styles = getSampleStyleSheet()
-    style_cover_title = ParagraphStyle(
-        "CoverTitle", parent=styles["Title"],
-        fontName="Helvetica-Bold", fontSize=36, textColor=colors.white,
-        alignment=TA_CENTER, leading=42, spaceAfter=12,
+    style_family_h = ParagraphStyle(
+        "FamilyH", parent=styles["Heading1"],
+        fontName="Helvetica-Bold", fontSize=18, textColor=GREEN_DARK,
+        alignment=TA_CENTER, leading=22, spaceAfter=2,
     )
-    style_cover_sub = ParagraphStyle(
-        "CoverSub", parent=styles["Normal"],
-        fontName="Helvetica", fontSize=14, textColor=colors.white,
-        alignment=TA_CENTER, leading=18, spaceAfter=6,
-    )
-    style_cover_caption = ParagraphStyle(
-        "CoverCap", parent=styles["Normal"],
-        fontName="Helvetica-Oblique", fontSize=10, textColor=colors.white,
-        alignment=TA_CENTER, leading=14,
-    )
-    style_section_h1 = ParagraphStyle(
-        "SectionH1", parent=styles["Heading1"],
-        fontName="Helvetica-Bold", fontSize=22, textColor=GREEN_DARK,
-        alignment=TA_LEFT, leading=26, spaceBefore=8, spaceAfter=4,
-    )
-    style_section_intro = ParagraphStyle(
-        "SectionIntro", parent=styles["Normal"],
-        fontName="Helvetica-Oblique", fontSize=10, textColor=MUTED,
-        alignment=TA_LEFT, leading=14, spaceAfter=10,
-    )
-    style_product_name = ParagraphStyle(
-        "ProductName", parent=styles["Heading3"],
-        fontName="Helvetica-Bold", fontSize=11, textColor=GREEN_DARK,
-        alignment=TA_LEFT, leading=13, spaceBefore=4, spaceAfter=1,
-    )
-    style_latin = ParagraphStyle(
-        "Latin", parent=styles["Normal"],
-        fontName="Helvetica-Oblique", fontSize=8.5, textColor=MUTED,
-        alignment=TA_LEFT, leading=11, spaceAfter=2,
-    )
-    style_brief = ParagraphStyle(
-        "Brief", parent=styles["Normal"],
-        fontName="Helvetica", fontSize=8.5, textColor=INK,
-        alignment=TA_LEFT, leading=11, spaceAfter=4,
-    )
-    style_spec_label = ParagraphStyle(
-        "SpecLabel", parent=styles["Normal"],
-        fontName="Helvetica-Bold", fontSize=7, textColor=MUTED,
-        alignment=TA_LEFT, leading=9,
-    )
-    style_spec_value = ParagraphStyle(
-        "SpecValue", parent=styles["Normal"],
-        fontName="Helvetica", fontSize=7.5, textColor=INK,
-        alignment=TA_LEFT, leading=9,
-    )
-    style_toc_item = ParagraphStyle(
-        "TOC", parent=styles["Normal"],
-        fontName="Helvetica", fontSize=10, textColor=INK,
-        alignment=TA_LEFT, leading=14, leftIndent=12,
-    )
-    style_toc_family = ParagraphStyle(
-        "TOCFamily", parent=styles["Normal"],
-        fontName="Helvetica-Bold", fontSize=11, textColor=GREEN_DARK,
-        alignment=TA_LEFT, leading=14, spaceAfter=2,
-    )
-    style_contact = ParagraphStyle(
-        "Contact", parent=styles["Normal"],
-        fontName="Helvetica", fontSize=11, textColor=INK,
-        alignment=TA_CENTER, leading=15, spaceAfter=4,
+    style_family_sub = ParagraphStyle(
+        "FamilySub", parent=styles["Normal"],
+        fontName="Helvetica-Oblique", fontSize=9, textColor=GREEN,
+        alignment=TA_CENTER, leading=12, spaceAfter=8,
     )
 
-    # ─── Products by family (catalog starts directly, no cover/TOC) ──────
     story = []
-    # First page must use the "content" template (not "cover")
-    story.append(NextPageTemplate("content"))
+    # Card grid: 3 cards per row (like ONIC page 05/06)
+    cards_per_row = 3
+    card_w = (PAGE_W - 2 * MARGIN - (cards_per_row - 1) * 4 * mm) / cards_per_row
+    card_h = 64 * mm
+    row_gap = 4 * mm
+
     for fid in family_order:
         if fid not in by_family:
             continue
         family_name = families.get(fid, fid)
         family_products = by_family[fid]
 
-        # Section header
-        story.append(Paragraph(family_name, style_section_h1))
-        story.append(HorizontalLine(PAGE_W - 2*MARGIN, 1, GREEN_LIME))
+        # Family header (centered, dark green serif)
+        story.append(Spacer(1, 2 * mm))
+        story.append(Paragraph(family_name, style_family_h))
         story.append(Paragraph(
-            f"{len(family_products)} products in this family.",
-            style_section_intro
+            f"{len(family_products)} products in this family",
+            style_family_sub
         ))
+        # Thin green divider line
+        from reportlab.platypus import HRFlowable
+        story.append(HRFlowable(width="40%", thickness=1, color=GREEN,
+                                 hAlign="CENTER", spaceBefore=0, spaceAfter=6))
+        story.append(Spacer(1, 2 * mm))
 
-        # Build 2-column table of products
-        # Each cell: image (left) + name/latin/brief/specs (right)
-        col_w = (PAGE_W - 2*MARGIN - 6*mm) / 2  # 2 cols with 6mm gutter
-        # Image column width inside cell
-        IMG_W = 22 * mm
-        IMG_H = 22 * mm  # square thumbnail
-        TEXT_W = col_w - IMG_W - 3*mm  # gap between image and text
-
-        # Render products one per row in 2-column layout, but allow page breaks
-        # Use a list of [left_cell_flows, right_cell_flows] rows.
+        # Build grid of product cards
         rows = []
         current_row = []
         for p in family_products:
-            # ─── Build image flowable (or placeholder) ─────────────────────
-            img_path = PROJECT_ROOT / "public" / p["image"].lstrip("/")
-            img_flowable = Spacer(1, IMG_H)  # default placeholder
-            if img_path.exists():
-                try:
-                    from PIL import Image as PILImage
-                    pil_img = PILImage.open(img_path)
-                    pil_img.thumbnail((int(IMG_W * 2), int(IMG_H * 2)), PILImage.LANCZOS)
-                    # Save resized copy to /tmp to avoid permission issues
-                    tmp_path = Path("/tmp") / f"catalog_{p['id']}.jpg"
-                    if pil_img.mode != "RGB":
-                        pil_img = pil_img.convert("RGB")
-                    pil_img.save(tmp_path, "JPEG", quality=85)
-                    img_flowable = RLImage(str(tmp_path), width=IMG_W, height=IMG_H)
-                    img_flowable.hAlign = "LEFT"
-                except Exception as e:
-                    print(f"  ⚠ Could not load image {img_path}: {e}")
-            else:
-                print(f"  ⚠ Image not found: {img_path}")
-
-            # ─── Build text flowables (name, latin, brief, specs) ────────
-            text_flows = [
-                Paragraph(p["name"], style_product_name),
-                Paragraph(f"<i>{p['latinName']}</i>", style_latin),
-                Paragraph(p["brief"], style_brief),
-            ]
-
-            # Specs table (compact 2-col)
-            spec_rows = []
-            spec_data = [
-                ("Origin", p["origin"] or "Egypt"),
-                ("MOQ", p["moq"]),
-                ("Purity", p["purity"]),
-                ("Forms", ", ".join(p["forms"])),
-                ("Season", p["season"]),
-                ("Shelf life", p["shelfLife"]),
-            ]
-            for label, value in spec_data:
-                if value and value != "—":
-                    spec_rows.append([
-                        Paragraph(label, style_spec_label),
-                        Paragraph(value, style_spec_value),
-                    ])
-            if spec_rows:
-                spec_table = Table(
-                    spec_rows,
-                    colWidths=[16*mm, TEXT_W - 18*mm],
-                    hAlign="LEFT",
-                )
-                spec_table.setStyle(TableStyle([
-                    ("VALIGN", (0,0), (-1,-1), "TOP"),
-                    ("LEFTPADDING", (0,0), (-1,-1), 0),
-                    ("RIGHTPADDING", (0,0), (-1,-1), 2),
-                    ("TOPPADDING", (0,0), (-1,-1), 1),
-                    ("BOTTOMPADDING", (0,0), (-1,-1), 1),
-                    ("LINEBELOW", (0,0), (-1,-1), 0.25, colors.HexColor("#e2e2d5")),
-                ]))
-                text_flows.append(spec_table)
-
-            # ─── Compose cell: image (left) + text (right) via inner table ─
-            inner = Table(
-                [[img_flowable, text_flows]],
-                colWidths=[IMG_W + 2*mm, TEXT_W],
-                hAlign="LEFT",
-            )
-            inner.setStyle(TableStyle([
-                ("VALIGN", (0,0), (-1,-1), "TOP"),
-                ("LEFTPADDING", (0,0), (-1,-1), 0),
-                ("RIGHTPADDING", (0,0), (0,-1), 2*mm),
-                ("RIGHTPADDING", (1,0), (1,-1), 0),
-                ("TOPPADDING", (0,0), (-1,-1), 0),
-                ("BOTTOMPADDING", (0,0), (-1,-1), 0),
-            ]))
-
-            cell_flows = [inner, Spacer(1, 4*mm)]
-            current_row.append(cell_flows)
-            if len(current_row) == 2:
+            card = ProductCard(p, card_w, card_h)
+            current_row.append(card)
+            if len(current_row) == cards_per_row:
                 rows.append(current_row)
                 current_row = []
-
-        # Trailing single cell
         if current_row:
-            current_row.append("")
+            while len(current_row) < cards_per_row:
+                current_row.append("")
             rows.append(current_row)
 
-        # Render as a list of 2-col tables (one per row), so each row can break
-        # across pages independently.
-        for row in rows:
-            outer = Table(
-                [row],
-                colWidths=[col_w, col_w],
-                hAlign="CENTER",
-            )
-            outer.setStyle(TableStyle([
-                ("VALIGN", (0,0), (-1,-1), "TOP"),
-                ("LEFTPADDING", (0,0), (0,-1), 0),
-                ("RIGHTPADDING", (0,0), (0,-1), 3*mm),
-                ("LEFTPADDING", (1,0), (1,-1), 3*mm),
-                ("RIGHTPADDING", (1,0), (1,-1), 0),
-                ("TOPPADDING", (0,0), (-1,-1), 0),
-                ("BOTTOMPADDING", (0,0), (-1,-1), 0),
+        # Render each row as a Table of cards
+        for row_cards in rows:
+            row_data = [row_cards]
+            t = Table(row_data, colWidths=[card_w] * cards_per_row,
+                      rowHeights=[card_h])
+            t.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
             ]))
-            # Split cell_flows across multiple flowables to allow page breaks
-            # Use KeepTogether only if the cell is small; otherwise let it flow.
-            # Since each row has at most 2 product cells, and each product fits
-            # in ~6cm of vertical space, this should page-break cleanly.
-            try:
-                story.append(outer)
-            except Exception:
-                # Fallback: append each cell's flowables individually
-                for cell in row:
-                    if isinstance(cell, list):
-                        for f in cell:
-                            story.append(f)
-            # Page break between families (handled by PageBreak at end of family loop)
+            # Use a container table with gutter
+            gutter_cells = []
+            for i, card in enumerate(row_cards):
+                gutter_cells.append(card)
+                if i < len(row_cards) - 1:
+                    gutter_cells.append("")  # gutter
+            # Simpler: just add the cards row + spacer
+            story.append(t)
+            story.append(Spacer(1, row_gap))
+
+        # Page break between families
         story.append(PageBreak())
 
-    # ─── Company info + contact page ────────────────────────────────────
-    story.append(Paragraph("About Herbs Milanos", style_section_h1))
-    story.append(HorizontalLine(PAGE_W - 2*MARGIN, 1, GREEN_LIME))
-    story.append(Spacer(1, 6*mm))
-    story.append(Paragraph(
-        "Herbs Milanos is an Egyptian botanical ingredients manufacturer and exporter "
-        "established in 2000. We supply herbs, flowers, seeds, spices, essential oils and "
-        "vegetable oils to customers in 30+ countries.",
-        style_brief
-    ))
-    story.append(Spacer(1, 4*mm))
-    story.append(Paragraph(
-        "Our commercial office is in Cairo, with processing facilities close to the farms "
-        "in Beni Suef, Fayoum, Minya and Assiut governorates — the heart of Egypt's "
-        "medicinal and aromatic plant production.",
-        style_brief
-    ))
-    story.append(Spacer(1, 8*mm))
+    # Remove trailing PageBreak
+    if story and isinstance(story[-1], PageBreak):
+        story.pop()
 
-    # Certifications
-    story.append(Paragraph("Certifications", style_product_name))
-    certs = [
-        ("ISO 9001:2015", "Quality Management System"),
-        ("ISO 22000:2018", "Food Safety Management System"),
-        ("HACCP", "Hazard Analysis and Critical Control Points"),
-    ]
-    cert_data = [[
-        Paragraph(f"<b>{name}</b>", style_spec_value),
-        Paragraph(desc, style_spec_value),
-    ] for name, desc in certs]
-    cert_table = Table(cert_data, colWidths=[40*mm, PAGE_W - 2*MARGIN - 40*mm])
-    cert_table.setStyle(TableStyle([
-        ("VALIGN", (0,0), (-1,-1), "TOP"),
-        ("LEFTPADDING", (0,0), (-1,-1), 0),
-        ("TOPPADDING", (0,0), (-1,-1), 2),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 2),
-        ("LINEBELOW", (0,0), (-1,-1), 0.25, colors.HexColor("#e2e2d5")),
-    ]))
-    story.append(cert_table)
-    story.append(Spacer(1, 10*mm))
-
-    # Trade terms
-    story.append(Paragraph("Trade Terms", style_product_name))
-    trade_data = [
-        ["MOQ", "1 metric ton (MT) per item — mixed 20ft container accepted"],
-        ["Incoterms", "FOB, CIF, CFR, EXW"],
-        ["Ports", "Alexandria, Port Said, Damietta"],
-        ["Payment", "30% advance (T/T), 70% against shipping documents"],
-        ["Packing", "25 kg multi-wall paper bags + inner PE liner, cartons, or private label"],
-        ["Lead time", "7–15 days from order confirmation"],
-        ["Documentation", "COA, Phytosanitary, Certificate of Origin — included with every shipment"],
-    ]
-    trade_rows = [[
-        Paragraph(f"<b>{k}</b>", style_spec_value),
-        Paragraph(v, style_spec_value),
-    ] for k, v in trade_data]
-    trade_table = Table(trade_rows, colWidths=[35*mm, PAGE_W - 2*MARGIN - 35*mm])
-    trade_table.setStyle(TableStyle([
-        ("VALIGN", (0,0), (-1,-1), "TOP"),
-        ("LEFTPADDING", (0,0), (-1,-1), 0),
-        ("TOPPADDING", (0,0), (-1,-1), 3),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 3),
-        ("LINEBELOW", (0,0), (-1,-1), 0.25, colors.HexColor("#e2e2d5")),
-    ]))
-    story.append(trade_table)
-    story.append(Spacer(1, 12*mm))
-
-    # Contact
-    story.append(HorizontalLine(PAGE_W - 2*MARGIN, 1.5, GOLD))
-    story.append(Spacer(1, 6*mm))
-    story.append(Paragraph("<b>Get a Quote in 24 Hours</b>", style_contact))
-    story.append(Spacer(1, 3*mm))
-    story.append(Paragraph("Herbs Milanos — Egyptian Botanicals Exporter", style_contact))
-    story.append(Paragraph(f"Email: {contact.get('email', 'herbs.milanos.eg@gmail.com')}", style_contact))
-    story.append(Paragraph(f"Phone / WhatsApp: {contact.get('phone', '+20 122 621 1624')}", style_contact))
-    story.append(Paragraph(f"Address: {contact.get('address', 'Beni Suef, Egypt')}", style_contact))
-    story.append(Paragraph("Hours: Mon–Sat, 9:00 – 17:00 (EET)", style_contact))
-    story.append(Spacer(1, 6*mm))
-    story.append(Paragraph(
-        "<i>This catalog is for B2B wholesale enquiries only. "
-        "Specifications subject to change without notice.</i>",
-        ParagraphStyle("foot", parent=style_brief, fontSize=8,
-                        textColor=MUTED, alignment=TA_CENTER)
-    ))
-
-    # ─── Build ──────────────────────────────────────────────────────────
     doc.build(story)
     print(f"✓ PDF generated: {OUTPUT_PDF}")
     print(f"  Size: {OUTPUT_PDF.stat().st_size / 1024:.1f} KB")
