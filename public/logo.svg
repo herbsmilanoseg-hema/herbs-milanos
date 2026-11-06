@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 60" fill="none">
+  <!-- Leaf icon with botanical gradient -->
+  <defs>
+    <linearGradient id="leafGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#174c35"/>
+      <stop offset="100%" stop-color="#95b858"/>
+    </linearGradient>
+    <linearGradient id="textGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#174c35"/>
+      <stop offset="100%" stop-color="#103826"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Leaf mark -->
+  <g transform="translate(4, 12)">
+    <!-- Leaf body -->
+    <path d="M18 0 C8 0 0 8 0 18 C0 28 8 36 18 36 C28 36 36 28 36 18 C36 8 28 0 18 0 Z" fill="url(#leafGrad)"/>
+    <!-- Leaf vein -->
+    <path d="M18 4 L18 32 M18 10 L10 16 M18 10 L26 16 M18 18 L8 24 M18 18 L28 24 M18 26 L12 30 M18 26 L24 30" stroke="rgba(255,255,255,0.4)" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+    <!-- HM monogram -->
+    <text x="18" y="23" font-family="Playfair Display, Georgia, serif" font-size="13" font-weight="700" fill="rgba(255,255,255,0.95)" text-anchor="middle">HM</text>
+  </g>
+
+  <!-- Brand name -->
+  <text x="52" y="28" font-family="Playfair Display, Georgia, serif" font-size="20" font-weight="700" fill="url(#textGrad)" letter-spacing="-0.5">
+    Herbs Milanos
+  </text>
+  <!-- Tagline -->
+  <text x="52" y="44" font-family="DM Sans, system-ui, sans-serif" font-size="9" font-weight="500" fill="#95b858" letter-spacing="1.5">
+    EGYPTIAN BOTANICALS EXPORTER
+  </text>
+</svg>

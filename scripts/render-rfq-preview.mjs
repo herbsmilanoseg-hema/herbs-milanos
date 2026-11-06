@@ -1,0 +1,150 @@
+/**
+ * Test script: render the RFQ notification HTML template to a file so we can
+ * visually verify it matches inquiry.jpg format.
+ */
+import { writeFileSync } from "node:fs";
+
+const site = {
+  url: "https://herbsmilanos.space-z.ai",
+  contact: { email: "herbs.milanos.eg@gmail.com", phone: "+20 122 621 1624" },
+  hours: "Mon – Sat, 9:00 – 17:00 (EET)",
+};
+
+const TO_INBOX = site.contact.email;
+
+function escapeHtml(s) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function buildNotificationHtml(d) {
+  const contactRows = [
+    ["Name", d.name ?? ""],
+    ["Company", d.company ?? ""],
+    ["Country", d.country ?? ""],
+    ["Email", d.email ?? ""],
+    ["Phone", d.phone ?? ""],
+  ];
+  const productRows = [
+    ["Category", d.category ?? ""],
+    ["Product", d.product ?? ""],
+    ["Quantity", d.quantity ?? ""],
+    ["Form", d.form ?? ""],
+    ["Packing", d.packing ?? ""],
+    ["Port", d.port ?? ""],
+    ["Incoterm", d.incoterm ?? ""],
+  ];
+
+  const isoTimestamp = new Date().toISOString();
+  const localTimestamp = new Date().toLocaleString("en-GB", {
+    timeZone: "Africa/Cairo",
+  });
+  const sentFromUrl = `${site.url}/contact`;
+  const replyEmail = d.email ?? TO_INBOX;
+  const notes = (d.notes ?? "").trim() || "—";
+
+  const rowHtml = (label, value, isLink = false) => {
+    const safe = escapeHtml(value || "—");
+    const cell =
+      isLink && value
+        ? `<a href="mailto:${escapeHtml(value)}" style="color:#0000EE;text-decoration:underline;font-weight:700;">${safe}</a>`
+        : `<strong style="color:#1a1a1a;font-weight:700;">${safe}</strong>`;
+    return `<tr><td style="padding:8px 0 8px 0;width:140px;color:#555555;font-weight:400;font-size:14px;vertical-align:top;">${escapeHtml(
+      label
+    )}:</td><td style="padding:8px 0 8px 0;color:#1a1a1a;font-size:14px;vertical-align:top;">${cell}</td></tr>`;
+  };
+
+  const contactRowsHtml = contactRows
+    .map(([k, v]) => (k === "Email" ? rowHtml(k, v, true) : rowHtml(k, v, false)))
+    .join("");
+
+  const productRowsHtml = productRows.map(([k, v]) => rowHtml(k, v)).join("");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>New RFQ from ${escapeHtml(d.name ?? "Website")}</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f0f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;">
+  <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="margin:24px auto;background:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+    <!-- Header banner (dark forest green) -->
+    <tr>
+      <td style="padding:30px;background:#2d5a3d;color:#ffffff;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+          <tr>
+            <td style="vertical-align:middle;">
+              <h1 style="margin:0;font-size:26px;font-weight:700;line-height:1.2;">
+                <span style="display:inline-block;margin-right:10px;">🌿</span>New RFQ Submission
+              </h1>
+              <p style="margin:6px 0 0;font-size:14px;color:#ffffff;opacity:0.92;">Herbs Milanos &mdash; Export Enquiry</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:30px;">
+        <h2 style="margin:0 0 8px 0;font-size:17px;font-weight:700;color:#2d5a3d;">Contact Details</h2>
+        <hr style="margin:0 0 14px 0;border:0;border-top:1px solid #a3b18a;" />
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+          ${contactRowsHtml}
+        </table>
+        <h2 style="margin:24px 0 8px 0;font-size:17px;font-weight:700;color:#2d5a3d;">Product Requirements</h2>
+        <hr style="margin:0 0 14px 0;border:0;border-top:1px solid #a3b18a;" />
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+          ${productRowsHtml}
+        </table>
+        <h2 style="margin:24px 0 8px 0;font-size:17px;font-weight:700;color:#2d5a3d;">Notes</h2>
+        <hr style="margin:0 0 14px 0;border:0;border-top:1px solid #a3b18a;" />
+        <div style="background:#f5f5f5;border-radius:6px;padding:15px;font-size:14px;color:#1a1a1a;line-height:1.5;word-break:break-word;">
+          ${escapeHtml(notes)}
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 30px 24px 30px;border-top:1px solid #e8e8e8;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:12px;line-height:1.7;">
+          <tr>
+            <td style="color:#777777;width:110px;vertical-align:top;">Sent from:</td>
+            <td style="color:#1a1a1a;"><a href="${escapeHtml(sentFromUrl)}" style="color:#0000EE;text-decoration:underline;">${escapeHtml(sentFromUrl)}</a></td>
+          </tr>
+          <tr>
+            <td style="color:#777777;vertical-align:top;">Timestamp:</td>
+            <td style="color:#1a1a1a;">${escapeHtml(isoTimestamp)} <span style="color:#999999;">(Cairo: ${escapeHtml(localTimestamp)})</span></td>
+          </tr>
+          <tr>
+            <td style="color:#777777;vertical-align:top;">Reply to:</td>
+            <td><a href="mailto:${escapeHtml(replyEmail)}" style="color:#0000EE;text-decoration:underline;">${escapeHtml(replyEmail)}</a></td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+const html = buildNotificationHtml({
+  name: "Ibrahim Saber",
+  company: "MIT",
+  country: "Egypt",
+  email: "mena7474@gmail.com",
+  phone: "01005771268",
+  category: "Herbs",
+  product: "cumin",
+  quantity: "5 MT",
+  form: "Ground",
+  packing: "25 kg bags",
+  port: "Alexandria, Egypt",
+  incoterm: "FOB",
+  notes: "Required for testing new email template format — please confirm receipt.",
+});
+
+writeFileSync("/home/z/my-project/download/rfq-email-preview.html", html);
+console.log("✓ Saved RFQ email HTML preview to download/rfq-email-preview.html");
+console.log("✓ Bytes:", html.length);
