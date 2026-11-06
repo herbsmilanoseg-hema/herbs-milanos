@@ -1031,9 +1031,11 @@ const en: Dictionary = {
 /* Full translations for each language. Product names and trade terms
    (FOB, CIF, MOQ, etc.) are kept in English across all languages. */
 import { fr } from "./dictionaries/fr";
+import { de } from "./dictionaries/de";
 
 export const translations: Record<LangCode, Dictionary> = {
   en,
   ar,
   fr,
+  de,
 };
