@@ -1035,6 +1035,9 @@ import { de } from "./dictionaries/de";
 import { it } from "./dictionaries/it";
 import { ru } from "./dictionaries/ru";
 import { zh } from "./dictionaries/zh";
+import { es } from "./dictionaries/es";
+import { pt } from "./dictionaries/pt";
+import { tr } from "./dictionaries/tr";
 
 export const translations: Record<LangCode, Dictionary> = {
   en,
@@ -1044,4 +1047,7 @@ export const translations: Record<LangCode, Dictionary> = {
   it,
   ru,
   zh,
+  es,
+  pt,
+  tr,
 };
