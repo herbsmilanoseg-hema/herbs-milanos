@@ -55,9 +55,9 @@ export function SiteFooter() {
               <Image
                 src="/logo/footer.png"
                 alt={site.name}
-                width={48}
-                height={32}
-                className="h-9 w-auto object-contain"
+                width={56}
+                height={38}
+                className="h-11 w-auto object-contain"
               />
               <span className="flex flex-col leading-none">
                 <span className="text-lg font-bold tracking-tight text-white">

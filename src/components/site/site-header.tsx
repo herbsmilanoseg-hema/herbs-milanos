@@ -65,9 +65,9 @@ export function SiteHeader() {
           <Image
             src="/logo/header.png"
             alt={site.name}
-            width={48}
-            height={32}
-            className="h-9 w-auto object-contain"
+            width={64}
+            height={43}
+            className="h-12 w-auto object-contain"
             priority
           />
           <span className="flex flex-col leading-none">
@@ -140,9 +140,9 @@ export function SiteHeader() {
                   <Image
                     src="/logo/header.png"
                     alt={site.name}
-                    width={40}
-                    height={28}
-                    className="h-8 w-auto object-contain"
+                    width={56}
+                    height={38}
+                    className="h-10 w-auto object-contain"
                   />
                   <span className="text-primary">{site.name}</span>
                 </SheetTitle>
