@@ -1032,10 +1032,16 @@ const en: Dictionary = {
    (FOB, CIF, MOQ, etc.) are kept in English across all languages. */
 import { fr } from "./dictionaries/fr";
 import { de } from "./dictionaries/de";
+import { it } from "./dictionaries/it";
+import { ru } from "./dictionaries/ru";
+import { zh } from "./dictionaries/zh";
 
 export const translations: Record<LangCode, Dictionary> = {
   en,
   ar,
   fr,
   de,
+  it,
+  ru,
+  zh,
 };
