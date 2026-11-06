@@ -414,15 +414,40 @@ def build_pdf():
         ))
 
         # Build 2-column table of products
-        # Each cell: name, latin, brief, key specs (origin, MOQ, purity, forms)
+        # Each cell: image (left) + name/latin/brief/specs (right)
         col_w = (PAGE_W - 2*MARGIN - 6*mm) / 2  # 2 cols with 6mm gutter
+        # Image column width inside cell
+        IMG_W = 22 * mm
+        IMG_H = 22 * mm  # square thumbnail
+        TEXT_W = col_w - IMG_W - 3*mm  # gap between image and text
 
         # Render products one per row in 2-column layout, but allow page breaks
         # Use a list of [left_cell_flows, right_cell_flows] rows.
         rows = []
         current_row = []
         for p in family_products:
-            cell_flows = [
+            # ─── Build image flowable (or placeholder) ─────────────────────
+            img_path = PROJECT_ROOT / "public" / p["image"].lstrip("/")
+            img_flowable = Spacer(1, IMG_H)  # default placeholder
+            if img_path.exists():
+                try:
+                    from PIL import Image as PILImage
+                    pil_img = PILImage.open(img_path)
+                    pil_img.thumbnail((int(IMG_W * 2), int(IMG_H * 2)), PILImage.LANCZOS)
+                    # Save resized copy to /tmp to avoid permission issues
+                    tmp_path = Path("/tmp") / f"catalog_{p['id']}.jpg"
+                    if pil_img.mode != "RGB":
+                        pil_img = pil_img.convert("RGB")
+                    pil_img.save(tmp_path, "JPEG", quality=85)
+                    img_flowable = RLImage(str(tmp_path), width=IMG_W, height=IMG_H)
+                    img_flowable.hAlign = "LEFT"
+                except Exception as e:
+                    print(f"  ⚠ Could not load image {img_path}: {e}")
+            else:
+                print(f"  ⚠ Image not found: {img_path}")
+
+            # ─── Build text flowables (name, latin, brief, specs) ────────
+            text_flows = [
                 Paragraph(p["name"], style_product_name),
                 Paragraph(f"<i>{p['latinName']}</i>", style_latin),
                 Paragraph(p["brief"], style_brief),
@@ -447,7 +472,7 @@ def build_pdf():
             if spec_rows:
                 spec_table = Table(
                     spec_rows,
-                    colWidths=[18*mm, col_w - 22*mm],
+                    colWidths=[16*mm, TEXT_W - 18*mm],
                     hAlign="LEFT",
                 )
                 spec_table.setStyle(TableStyle([
@@ -458,9 +483,24 @@ def build_pdf():
                     ("BOTTOMPADDING", (0,0), (-1,-1), 1),
                     ("LINEBELOW", (0,0), (-1,-1), 0.25, colors.HexColor("#e2e2d5")),
                 ]))
-                cell_flows.append(spec_table)
+                text_flows.append(spec_table)
 
-            cell_flows.append(Spacer(1, 4*mm))
+            # ─── Compose cell: image (left) + text (right) via inner table ─
+            inner = Table(
+                [[img_flowable, text_flows]],
+                colWidths=[IMG_W + 2*mm, TEXT_W],
+                hAlign="LEFT",
+            )
+            inner.setStyle(TableStyle([
+                ("VALIGN", (0,0), (-1,-1), "TOP"),
+                ("LEFTPADDING", (0,0), (-1,-1), 0),
+                ("RIGHTPADDING", (0,0), (0,-1), 2*mm),
+                ("RIGHTPADDING", (1,0), (1,-1), 0),
+                ("TOPPADDING", (0,0), (-1,-1), 0),
+                ("BOTTOMPADDING", (0,0), (-1,-1), 0),
+            ]))
+
+            cell_flows = [inner, Spacer(1, 4*mm)]
             current_row.append(cell_flows)
             if len(current_row) == 2:
                 rows.append(current_row)
