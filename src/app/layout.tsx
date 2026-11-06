@@ -7,13 +7,13 @@ import { RouteProgressBar } from "@/components/site/animations";
 import { Chatbot } from "@/components/site/chatbot";
 
 // Premium botanical typography (mirrors herbs-eg.com identity)
-// DM Sans for body (clean, readable) — minimal weights for speed
+// DM Sans for body (clean, readable) — preload for faster LCP
 const dmSans = DM_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
   display: "swap",
   weight: ["400", "700"],
-  preload: false,
+  preload: true,
 });
 
 // Playfair Display for headings (classic, premium) — minimal weights
@@ -22,11 +22,11 @@ const playfair = Playfair_Display({
   subsets: ["latin"],
   display: "swap",
   weight: ["700"],
-  preload: false,
+  preload: true,
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://herbsmilanos.space-z.ai"),
+  metadataBase: new URL("https://herbs-milanos.vercel.app"),
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -101,10 +101,10 @@ export const metadata: Metadata = {
     images: ["/hero-welcome.jpg"],
   },
   alternates: {
-    canonical: "https://herbsmilanos.space-z.ai",
+    canonical: "https://herbs-milanos.vercel.app",
     languages: {
-      "en": "https://herbsmilanos.space-z.ai",
-      "ar": "https://herbsmilanos.space-z.ai",
+      "en": "https://herbs-milanos.vercel.app",
+      "ar": "https://herbs-milanos.vercel.app",
     },
   },
 };
@@ -121,8 +121,8 @@ const orgSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "Herbs Milanos",
-  url: "https://herbsmilanos.space-z.ai",
-  logo: "https://herbsmilanos.space-z.ai/logo.svg",
+  url: "https://herbs-milanos.vercel.app",
+  logo: "https://herbs-milanos.vercel.app/logo.svg",
   description:
     "Egyptian manufacturer and bulk exporter of aromatic plants, herbs, flowers, seeds and spices.",
   foundingDate: "2000",

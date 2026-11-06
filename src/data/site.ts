@@ -19,7 +19,7 @@ export const site = {
     "Herbs Milanos is an Egyptian manufacturer and bulk exporter of aromatic plants, herbs, flowers, seeds, spices and essential oils. Own farms in Beni Suef, processing under ISO 22000 & HACCP since 2000.",
 
   /** Public website URL */
-  url: "https://herbsmilanos.space-z.ai",
+  url: "https://herbs-milanos.vercel.app",
 
   contact: {
     /** Working inbox — receives RFQ submissions and is shown site-wide. */

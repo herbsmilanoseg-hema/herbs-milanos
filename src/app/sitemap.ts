@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { catalogProducts } from "@/data/catalog";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = "https://herbsmilanos.space-z.ai";
+  const base = "https://herbs-milanos.vercel.app";
   const staticRoutes = ["", "/about", "/products", "/resources", "/faq", "/contact"];
   const now = new Date();
 

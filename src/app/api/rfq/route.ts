@@ -24,7 +24,7 @@ const TO_INBOX = process.env.RFQ_TO_EMAIL ?? site.contact.email;
 
 // Allow POSTs from the site itself (same origin) and localhost for testing.
 const ALLOWED_ORIGINS = [
-  site.url,                       // https://herbsmilanos.space-z.ai
+  site.url,                       // https://herbs-milanos.vercel.app
   "https://preview-chat-8ad77471-05b4-4c63-afa3-4a0fe7d9e3d2.space-z.ai",
   "http://localhost:3000",
 ];

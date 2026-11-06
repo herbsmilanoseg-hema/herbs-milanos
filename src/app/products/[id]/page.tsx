@@ -109,8 +109,8 @@ export default async function ProductDetailPage({
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "https://herbsmilanos.space-z.ai" },
-      { "@type": "ListItem", position: 2, name: "Products", item: "https://herbsmilanos.space-z.ai/products" },
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://herbs-milanos.vercel.app" },
+      { "@type": "ListItem", position: 2, name: "Products", item: "https://herbs-milanos.vercel.app/products" },
       { "@type": "ListItem", position: 3, name: product.name },
     ],
   };
