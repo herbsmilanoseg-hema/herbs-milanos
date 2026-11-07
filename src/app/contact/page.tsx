@@ -322,7 +322,7 @@ export default function ContactPage() {
                         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                           {card.title}
                         </p>
-                        <p className="truncate text-sm font-medium text-foreground">
+                        <p className="truncate text-sm font-medium text-foreground ltr:text-right" dir="ltr">
                           {card.value}
                         </p>
                       </div>
